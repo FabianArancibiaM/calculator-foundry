@@ -1,0 +1,65 @@
+# FirstFoundryRepo — Calculadora en Solidity con Foundry
+
+Primer proyecto con [Foundry](https://book.getfoundry.sh/) del programa **BlockChain Accelerator**: un smart contract de calculadora con control de acceso y una suite de tests que cubre casos felices, reverts y permisos.
+
+## Qué hace el contrato
+
+`src/Calculadora.sol` guarda el último resultado en la variable de estado `resultado` y expone cuatro operaciones:
+
+| Función | Quién puede llamarla | Notas |
+|---|---|---|
+| `addition(a, b)` | Cualquiera | Emite `Addition` |
+| `substraction(a, b)` | Cualquiera | Revierte si `a < b` (Solidity ≥ 0.8) |
+| `multiplier(a, b)` | Cualquiera | Revierte por overflow |
+| `division(a, b)` | Solo `admin` (modifier `OnlyAdmin`) | Revierte si `b == 0` |
+
+El `admin` y el resultado inicial se definen en el constructor.
+
+## Conceptos practicados
+
+- Variables de estado, eventos y modifiers
+- Control de acceso con `require(msg.sender == admin)`
+- Protección contra overflow/underflow de Solidity 0.8
+- Tests con `forge-std`: `vm.addr`, `vm.startPrank` / `vm.stopPrank`, `vm.expectRevert`
+- CI con GitHub Actions (`forge fmt --check`, `forge build`, `forge test`)
+
+## Estructura
+
+```
+├── src/Calculadora.sol          # Contrato
+├── test/CalculadoraTest.t.sol   # Tests (10 casos)
+├── lib/forge-std                # Dependencia (submódulo git)
+├── foundry.toml
+└── .github/workflows/test.yml   # CI
+```
+
+## Cómo ejecutarlo
+
+Requisitos: [instalar Foundry](https://book.getfoundry.sh/getting-started/installation).
+
+```bash
+git clone --recurse-submodules <URL_DEL_REPO>
+cd FirstFoundryRepo
+
+forge build
+forge test
+forge test --match-test testAddition -vvvv   # un test específico, con traza
+forge fmt                                             # formatear
+```
+
+## Tests incluidos
+
+- Resultado inicial correcto
+- Suma, resta y multiplicación
+- Multiplicación con números enormes revierte (overflow)
+- `division` revierte si no la llama el admin
+- `division` correcta como admin
+- `division` por cero revierte
+
+## Stack
+
+Solidity 0.8.37 · Foundry (forge) · forge-std · GitHub Actions
+
+## Autor
+
+**Fabián Arancibia** — Desarrollador full-stack en transición hacia seguridad de smart contracts / DevSecOps.
