@@ -52,6 +52,9 @@ contract Calculadora {
         OnlyAdmin
         returns (uint256 resultado_)
     {
+        if (secondNumber_ == 0) {
+            return 0;
+        }   
         resultado_ = firstNumber_ / secondNumber_;
         resultado = resultado_;
         emit Division(firstNumber_, secondNumber_, resultado_);

@@ -107,4 +107,16 @@ contract CalculadoraTest is Test {
 
         vm.stopPrank();
     }
+
+// unit test -> definimos las variables y los resultados esperados
+// fuzzing test -> definimos las variables y los resultados esperados, pero no definimos los valores de entrada, forge los genera de manera aleatoria
+    // Fuzzing test
+    function testFuzzingDivision(uint256 firstNumber_, uint256 secondNumber_) public {
+        vm.startPrank(admin);
+        
+        calculadora.division(firstNumber_, secondNumber_);
+
+        vm.stopPrank();
+    }   
+
 }
