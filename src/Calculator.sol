@@ -1,62 +1,65 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity 0.8.37;
 
-contract Calculadora {
-    uint256 public resultado;
+/// @title Calculator
+/// @notice Learning exercise: basic arithmetic that stores the last result on-chain.
+/// @dev Anyone can overwrite `result` (it is shared state). Only `admin` can call `division`.
+contract Calculator {
+    /// @notice Result of the last operation executed.
+    uint256 public result;
+
+    /// @notice Address allowed to call `division`.
     address public admin;
 
+    // Errors
+    error Unauthorized();
+    error DivisionByZero();
+
     // Events
-    event Addition(uint256 firstNumber_, uint256 secondNumber_, uint256 resultado_);
-    event Substraction(uint256 firstNumber_, uint256 secondNumber_, uint256 resultado_);
-    event Multiplier(uint256 firstNumber_, uint256 secondNumber_, uint256 resultado_);
-    event Division(uint256 firstNumber_, uint256 secondNumber_, uint256 resultado_);
+    event Addition(uint256 firstNumber_, uint256 secondNumber_, uint256 result_);
+    event Subtraction(uint256 firstNumber_, uint256 secondNumber_, uint256 result_);
+    event Multiplication(uint256 firstNumber_, uint256 secondNumber_, uint256 result_);
+    event Division(uint256 firstNumber_, uint256 secondNumber_, uint256 result_);
 
     // Modifiers
-    modifier OnlyAdmin() {
-        require(msg.sender == admin, "No autorizado");
+    modifier onlyAdmin() {
+        if (msg.sender != admin) revert Unauthorized();
         _;
     }
 
-    constructor(uint256 firsResultado_, address admin_) {
-        resultado = firsResultado_;
+    constructor(uint256 initialResult_, address admin_) {
+        result = initialResult_;
         admin = admin_;
     }
 
-    // Functions
-
-    // Addition
-    function addition(uint256 firstNumber_, uint256 secondNumber_) external returns (uint256 resultado_) {
-        resultado_ = firstNumber_ + secondNumber_;
-        resultado = resultado_;
-        emit Addition(firstNumber_, secondNumber_, resultado_);
+    /// @notice Adds two numbers and stores the result. Reverts on overflow.
+    function addition(uint256 firstNumber_, uint256 secondNumber_) external returns (uint256 result_) {
+        result_ = firstNumber_ + secondNumber_;
+        result = result_;
+        emit Addition(firstNumber_, secondNumber_, result_);
     }
 
-    // Substraction
-    function substraction(uint256 firstNumber_, uint256 secondNumber_) external returns (uint256 resultado_) {
-        resultado_ = firstNumber_ - secondNumber_;
-        resultado = resultado_;
-        emit Substraction(firstNumber_, secondNumber_, resultado_);
+    /// @notice Subtracts two numbers and stores the result. Reverts if `secondNumber_ > firstNumber_`.
+    function subtraction(uint256 firstNumber_, uint256 secondNumber_) external returns (uint256 result_) {
+        result_ = firstNumber_ - secondNumber_;
+        result = result_;
+        emit Subtraction(firstNumber_, secondNumber_, result_);
     }
 
-    // Multiplier
-    function multiplier(uint256 firstNumber_, uint256 secondNumber_) external returns (uint256 resultado_) {
-        resultado_ = firstNumber_ * secondNumber_;
-        resultado = resultado_;
-        emit Multiplier(firstNumber_, secondNumber_, resultado_);
+    /// @notice Multiplies two numbers and stores the result. Reverts on overflow.
+    function multiply(uint256 firstNumber_, uint256 secondNumber_) external returns (uint256 result_) {
+        result_ = firstNumber_ * secondNumber_;
+        result = result_;
+        emit Multiplication(firstNumber_, secondNumber_, result_);
     }
 
-    // Division
-    function division(uint256 firstNumber_, uint256 secondNumber_)
-        external
-        OnlyAdmin
-        returns (uint256 resultado_)
-    {
-        if (secondNumber_ == 0) {
-            return 0;
-        }   
-        resultado_ = firstNumber_ / secondNumber_;
-        resultado = resultado_;
-        emit Division(firstNumber_, secondNumber_, resultado_);
+    /// @notice Divides two numbers (rounding down) and stores the result.
+    /// @dev Only `admin`. Reverts with `DivisionByZero` instead of failing silently.
+    function division(uint256 firstNumber_, uint256 secondNumber_) external onlyAdmin returns (uint256 result_) {
+        if (secondNumber_ == 0) revert DivisionByZero();
+
+        result_ = firstNumber_ / secondNumber_;
+        result = result_;
+        emit Division(firstNumber_, secondNumber_, result_);
     }
 }

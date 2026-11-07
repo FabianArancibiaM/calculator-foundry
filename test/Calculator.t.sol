@@ -1,122 +1,123 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity 0.8.37;
 
-import "../src/Calculadora.sol";
-import "forge-std/Test.sol";
+import {Test, stdError} from "forge-std/Test.sol";
+import {Calculator} from "../src/Calculator.sol";
 
-contract CalculadoraTest is Test {
-    Calculadora calculadora;
-    uint256 public firstResultado = 100;
-    address public admin = vm.addr(1);
-    address public randomUser = vm.addr(2);
+contract CalculatorTest is Test {
+    Calculator calculator;
+    uint256 initialResult = 100;
+    address admin = makeAddr("admin");
+    address randomUser = makeAddr("randomUser");
 
     function setUp() public {
-        calculadora = new Calculadora(firstResultado, admin);
-    }
-    /*
-    Ejecutar test en general: forge test
-    Ejecutar un test especifico: forge test --match-test testCheckFirsResultado
-    Ejecutar un test especifico + paso a paso : forge test --match-test testCheckFirsResultado -vvvv
- */
-    function testCheckFirsResultado() public view {
-        uint256 firsResult_ = calculadora.resultado();
-        assert(firsResult_ == firstResultado);
+        calculator = new Calculator(initialResult, admin);
     }
 
-    function testAddition() public {
-        uint256 firstNumber_ = 5;
-        uint256 secondNumber_ = 5;
-        uint256 restult_ = calculadora.addition(firstNumber_, secondNumber_);
+    // Run all tests:          forge test
+    // Run one test:           forge test --match-test test_Addition
+    // Run one test + traces:  forge test --match-test test_Addition -vvvv
 
-        assert(restult_ == firstNumber_ + secondNumber_);
+    // ---------------------------------------------------------------
+    // Unit tests: fixed inputs, known expected outputs
+    // ---------------------------------------------------------------
+
+    function test_InitialState() public view {
+        assertEq(calculator.result(), initialResult);
+        assertEq(calculator.admin(), admin);
     }
 
-    function testSubstraction() public {
-        uint256 firstNumber_ = 5;
-        uint256 secondNumber_ = 5;
-        uint256 restult_ = calculadora.substraction(
-            firstNumber_,
-            secondNumber_
-        );
+    function test_Addition() public {
+        uint256 result_ = calculator.addition(5, 7);
 
-        assert(restult_ == firstNumber_ - secondNumber_);
+        assertEq(result_, 12);
+        assertEq(calculator.result(), 12);
     }
 
-    function testMultiplier() public {
-        uint256 firstNumber_ = 5;
-        uint256 secondNumber_ = 5;
-        uint256 restult_ = calculadora.multiplier(firstNumber_, secondNumber_);
+    function test_AdditionEmitsEvent() public {
+        vm.expectEmit();
+        emit Calculator.Addition(5, 7, 12);
 
-        assert(restult_ == firstNumber_ * secondNumber_);
+        calculator.addition(5, 7);
     }
 
-    function testCanNotMultiply2LargeNumbers() public {
-        uint256 firstNumber_ = 5;
-        uint256 secondNumber_ = 115792089237316195423570985008687907853269984665640564039457584007913129639934;
+    function test_Subtraction() public {
+        uint256 result_ = calculator.subtraction(10, 4);
 
-        vm.expectRevert();
-        calculadora.multiplier(firstNumber_, secondNumber_);
+        assertEq(result_, 6);
+        assertEq(calculator.result(), 6);
     }
 
-    function testIfNotAdminCallsDivisionReverts() public {
-        vm.startPrank(randomUser);
-        uint256 firstNumber_ = 5;
-        uint256 secondNumber_ = 5;
-        vm.expectRevert();
-        calculadora.division(firstNumber_, secondNumber_);
-
-        vm.stopPrank();
+    function test_SubtractionRevertsOnUnderflow() public {
+        vm.expectRevert(stdError.arithmeticError);
+        calculator.subtraction(4, 10);
     }
 
-    function testAdminCallsDivisionCorrectly() public {
-        vm.startPrank(admin);
-        uint256 firstNumber_ = 5;
-        uint256 secondNumber_ = 5;
-        calculadora.division(firstNumber_, secondNumber_);
+    function test_Multiplication() public {
+        uint256 result_ = calculator.multiply(6, 7);
 
-        vm.stopPrank();
+        assertEq(result_, 42);
+        assertEq(calculator.result(), 42);
     }
 
-    function testDefaultCanNotCallDivisionCorrectly() public {
-        uint256 firstNumber_ = 5;
-        uint256 secondNumber_ = 2;
-        vm.expectRevert();
-        calculadora.division(firstNumber_, secondNumber_);
+    function test_MultiplicationRevertsOnOverflow() public {
+        vm.expectRevert(stdError.arithmeticError);
+        calculator.multiply(type(uint256).max, 2);
     }
 
-    function testDivisionExecutesCorrectly() public {
-        vm.startPrank(admin);
+    function test_DivisionAsAdmin() public {
+        vm.prank(admin);
+        uint256 result_ = calculator.division(20, 5);
 
-        uint256 firstNumber_ = 5;
-        uint256 secondNumber_ = 5;
-        uint256 restult_ = calculadora.division(firstNumber_, secondNumber_);
-
-        assert(restult_ == firstNumber_ / secondNumber_);
-        vm.stopPrank();
+        assertEq(result_, 4);
+        assertEq(calculator.result(), 4);
     }
 
-    function testCanNotDivisionZero() public {
-        vm.startPrank(admin);
-
-        uint256 firstNumber_ = 5;
-        uint256 secondNumber_ = 0;
-
-        vm.expectRevert();
-        calculadora.division(firstNumber_, secondNumber_);
-
-        vm.stopPrank();
+    function test_DivisionRevertsIfNotAdmin() public {
+        vm.expectRevert(Calculator.Unauthorized.selector);
+        vm.prank(randomUser);
+        calculator.division(20, 5);
     }
 
-// unit test -> definimos las variables y los resultados esperados
-// fuzzing test -> definimos las variables y los resultados esperados, pero no definimos los valores de entrada, forge los genera de manera aleatoria
-    // Fuzzing test
-    function testFuzzingDivision(uint256 firstNumber_, uint256 secondNumber_) public {
-        vm.startPrank(admin);
-        
-        calculadora.division(firstNumber_, secondNumber_);
+    function test_DivisionRevertsOnZero() public {
+        vm.expectRevert(Calculator.DivisionByZero.selector);
+        vm.prank(admin);
+        calculator.division(5, 0);
+    }
 
-        vm.stopPrank();
-    }   
+    // ---------------------------------------------------------------
+    // Fuzz tests: forge generates the inputs, we assert properties
+    // ---------------------------------------------------------------
 
+    function testFuzz_Addition(uint128 firstNumber_, uint128 secondNumber_) public {
+        // uint128 inputs can never overflow a uint256 sum
+        uint256 result_ = calculator.addition(firstNumber_, secondNumber_);
+
+        assertEq(result_, uint256(firstNumber_) + uint256(secondNumber_));
+    }
+
+    function testFuzz_SubtractionRevertsOnUnderflow(uint256 firstNumber_, uint256 secondNumber_) public {
+        vm.assume(firstNumber_ < secondNumber_);
+
+        vm.expectRevert(stdError.arithmeticError);
+        calculator.subtraction(firstNumber_, secondNumber_);
+    }
+
+    function testFuzz_Division(uint256 firstNumber_, uint256 secondNumber_) public {
+        vm.assume(secondNumber_ != 0);
+
+        vm.prank(admin);
+        uint256 result_ = calculator.division(firstNumber_, secondNumber_);
+
+        assertEq(result_, firstNumber_ / secondNumber_);
+        assertEq(calculator.result(), firstNumber_ / secondNumber_);
+    }
+
+    function testFuzz_DivisionRevertsIfNotAdmin(address caller_, uint256 firstNumber_, uint256 secondNumber_) public {
+        vm.assume(caller_ != admin);
+
+        vm.expectRevert(Calculator.Unauthorized.selector);
+        vm.prank(caller_);
+        calculator.division(firstNumber_, secondNumber_);
+    }
 }
