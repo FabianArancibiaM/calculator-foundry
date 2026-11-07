@@ -21,3 +21,6 @@ docs/
 
 # macOS
 .DS_Store
+
+# Editor settings
+.vscode/
